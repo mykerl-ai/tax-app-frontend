@@ -239,20 +239,26 @@ const BankStatement = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Gross Income</span>
-                      <span className="font-medium">{formatCurrency(result.taxEstimate.grossIncome)}</span>
+                      <span className="font-medium">{formatCurrency(result.taxEstimate.grossIncome || 0)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600">Tax Payable</span>
                       <span className="text-xl font-bold text-primary-600">
-                        {formatCurrency(result.taxEstimate.taxCalculation.finalTaxPayable)}
+                        {formatCurrency(
+                          result.taxEstimate.taxCalculation?.finalTaxPayable || 
+                          result.taxEstimate.taxPayable || 
+                          0
+                        )}
                       </span>
                     </div>
-                    <div className="flex justify-between pt-2 border-t border-primary-200">
-                      <span className="text-sm font-medium text-gray-700">Net Income</span>
-                      <span className="text-lg font-bold text-green-600">
-                        {formatCurrency(result.taxEstimate.netIncome)}
-                      </span>
-                    </div>
+                    {result.taxEstimate.netIncome !== undefined && (
+                      <div className="flex justify-between pt-2 border-t border-primary-200">
+                        <span className="text-sm font-medium text-gray-700">Net Income</span>
+                        <span className="text-lg font-bold text-green-600">
+                          {formatCurrency(result.taxEstimate.netIncome)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

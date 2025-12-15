@@ -245,42 +245,68 @@ const Calculator = () => {
               
               {/* Summary */}
               <div className="bg-primary-50 rounded-lg p-4 border border-primary-200">
+                {/* Special cases: Presumptive Tax or Minimum Wage Exemption */}
+                {(result.regime || result.exemption) && (
+                  <div className="mb-4 p-3 bg-blue-100 rounded-lg border border-blue-200">
+                    {result.regime && (
+                      <p className="text-sm font-medium text-blue-800">{result.regime}</p>
+                    )}
+                    {result.exemption && (
+                      <p className="text-sm font-medium text-blue-800">{result.exemption}</p>
+                    )}
+                    {result.effectiveRate && (
+                      <p className="text-xs text-blue-600 mt-1">Effective Rate: {result.effectiveRate}</p>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-gray-600">Gross Income</span>
                   <span className="text-lg font-semibold text-gray-900">
-                    {formatCurrency(result.grossIncome)}
+                    {formatCurrency(result.grossIncome || 0)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">Total Deductions</span>
-                  <span className="text-lg font-semibold text-gray-900">
-                    {formatCurrency(result.deductions.total)}
-                  </span>
-                </div>
+                
+                {result.deductions && (
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-gray-600">Total Deductions</span>
+                    <span className="text-lg font-semibold text-gray-900">
+                      {formatCurrency(result.deductions.total || 0)}
+                    </span>
+                  </div>
+                )}
+                
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-gray-600">Taxable Income</span>
                   <span className="text-lg font-semibold text-gray-900">
-                    {formatCurrency(result.taxableIncome)}
+                    {formatCurrency(result.taxableIncome || 0)}
                   </span>
                 </div>
+                
                 <div className="border-t border-primary-200 pt-2 mt-2">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm font-medium text-gray-700">Tax Payable</span>
                     <span className="text-2xl font-bold text-primary-600">
-                      {formatCurrency(result.taxCalculation.finalTaxPayable)}
+                      {formatCurrency(
+                        result.taxCalculation?.finalTaxPayable || 
+                        result.taxPayable || 
+                        0
+                      )}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Net Income</span>
-                    <span className="text-lg font-semibold text-green-600">
-                      {formatCurrency(result.netIncome)}
-                    </span>
-                  </div>
+                  {result.netIncome !== undefined && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Net Income</span>
+                      <span className="text-lg font-semibold text-green-600">
+                        {formatCurrency(result.netIncome)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Tax Breakdown */}
-              {result.taxCalculation.breakdown && result.taxCalculation.breakdown.length > 0 && (
+              {result.taxCalculation?.breakdown && result.taxCalculation.breakdown.length > 0 && (
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-3">Tax Breakdown by Band</h3>
                   <div className="space-y-2">
@@ -305,29 +331,49 @@ const Calculator = () => {
               )}
 
               {/* Deductions Breakdown */}
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Deductions Applied</h3>
-                <div className="space-y-2 text-sm">
-                  {result.deductions.cra > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Consolidated Relief Allowance (CRA)</span>
-                      <span className="font-medium">{formatCurrency(result.deductions.cra)}</span>
-                    </div>
-                  )}
-                  {result.deductions.pension > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Pension</span>
-                      <span className="font-medium">{formatCurrency(result.deductions.pension)}</span>
-                    </div>
-                  )}
-                  {result.deductions.rentRelief > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Rent Relief</span>
-                      <span className="font-medium">{formatCurrency(result.deductions.rentRelief)}</span>
-                    </div>
-                  )}
+              {result.deductions && (
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3">Deductions Applied</h3>
+                  <div className="space-y-2 text-sm">
+                    {result.deductions.cra > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Consolidated Relief Allowance (CRA)</span>
+                        <span className="font-medium">{formatCurrency(result.deductions.cra)}</span>
+                      </div>
+                    )}
+                    {result.deductions.pension > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Pension</span>
+                        <span className="font-medium">{formatCurrency(result.deductions.pension)}</span>
+                      </div>
+                    )}
+                    {result.deductions.rentRelief > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Rent Relief</span>
+                        <span className="font-medium">{formatCurrency(result.deductions.rentRelief)}</span>
+                      </div>
+                    )}
+                    {result.deductions.nhf > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">NHF</span>
+                        <span className="font-medium">{formatCurrency(result.deductions.nhf)}</span>
+                      </div>
+                    )}
+                    {result.deductions.nhis > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">NHIS</span>
+                        <span className="font-medium">{formatCurrency(result.deductions.nhis)}</span>
+                      </div>
+                    )}
+                    {result.deductions.lifeAssurance > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Life Assurance</span>
+                        <span className="font-medium">{formatCurrency(result.deductions.lifeAssurance)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Config Source */}
               <div className="pt-4 border-t border-gray-200">
