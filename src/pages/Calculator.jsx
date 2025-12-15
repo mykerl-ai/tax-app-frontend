@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Trash2, Calculator as CalcIcon, Info } from 'lucide-react'
+import { Plus, Trash2, Calculator as CalcIcon, ChevronDown, ChevronUp } from 'lucide-react'
 import { taxAPI } from '../services/api'
 import toast from 'react-hot-toast'
 
@@ -17,11 +17,12 @@ const Calculator = () => {
   const [isInformalSector, setIsInformalSector] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
+  const [showDeductions, setShowDeductions] = useState(false)
 
   const incomeTypes = [
     { value: 'salary', label: 'Salary' },
-    { value: 'business', label: 'Business Income' },
-    { value: 'investment', label: 'Investment Income' },
+    { value: 'business', label: 'Business' },
+    { value: 'investment', label: 'Investment' },
     { value: 'digital_asset', label: 'Digital Asset' },
     { value: 'other', label: 'Other' },
   ]
@@ -41,7 +42,6 @@ const Calculator = () => {
   }
 
   const handleCalculate = async () => {
-    // Validation
     const validSources = incomeSources.filter(s => s.amount && parseFloat(s.amount) > 0)
     if (validSources.length === 0) {
       toast.error('Please add at least one income source')
@@ -64,10 +64,13 @@ const Calculator = () => {
 
       const response = await taxAPI.calculate(data)
       setResult(response.data)
-      toast.success('Tax calculated successfully!')
+      toast.success('Tax calculated!')
+      // Scroll to results
+      setTimeout(() => {
+        document.getElementById('results')?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to calculate tax')
-      console.error(error)
     } finally {
       setLoading(false)
     }
@@ -82,320 +85,235 @@ const Calculator = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Tax Calculator</h1>
-        <p className="text-gray-600">Calculate your personal income tax based on Nigeria Tax Act 2025</p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Tax Calculator</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400">Enter your income and deductions</p>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Input Form */}
-        <div className="space-y-6">
-          {/* Income Sources */}
-          <div className="card">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Income Sources</h2>
-            <div className="space-y-4">
-              {incomeSources.map((source, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">Source {index + 1}</span>
-                    {incomeSources.length > 1 && (
-                      <button
-                        onClick={() => removeIncomeSource(index)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  <select
-                    value={source.type}
-                    onChange={(e) => updateIncomeSource(index, 'type', e.target.value)}
-                    className="input-field"
+      {/* Income Sources */}
+      <div className="card space-y-4">
+        <h2 className="font-bold text-gray-900 dark:text-white text-lg">Income Sources</h2>
+        <div className="space-y-4">
+          {incomeSources.map((source, index) => (
+            <div key={index} className="space-y-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Source {index + 1}</span>
+                {incomeSources.length > 1 && (
+                  <button
+                    onClick={() => removeIncomeSource(index)}
+                    className="p-1.5 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 active:scale-95"
                   >
-                    {incomeTypes.map(type => (
-                      <option key={type.value} value={type.value}>{type.label}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    placeholder="Amount (NGN)"
-                    value={source.amount}
-                    onChange={(e) => updateIncomeSource(index, 'amount', e.target.value)}
-                    className="input-field"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Description (optional)"
-                    value={source.description}
-                    onChange={(e) => updateIncomeSource(index, 'description', e.target.value)}
-                    className="input-field"
-                  />
-                </div>
-              ))}
-              <button
-                onClick={addIncomeSource}
-                className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-primary-500 hover:text-primary-600 transition-colors flex items-center justify-center"
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <select
+                value={source.type}
+                onChange={(e) => updateIncomeSource(index, 'type', e.target.value)}
+                className="input-field text-sm"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Income Source
-              </button>
-            </div>
-          </div>
-
-          {/* Deductions */}
-          <div className="card">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Deductions (Annual)</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Pension Contribution
-                </label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={deductions.pension}
-                  onChange={(e) => setDeductions({...deductions, pension: e.target.value})}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  National Housing Fund (NHF)
-                </label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={deductions.nhf}
-                  onChange={(e) => setDeductions({...deductions, nhf: e.target.value})}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  National Health Insurance (NHIS)
-                </label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={deductions.nhis}
-                  onChange={(e) => setDeductions({...deductions, nhis: e.target.value})}
-                  className="input-field"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rent Paid (Annual)
-                </label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={deductions.rentPaid}
-                  onChange={(e) => setDeductions({...deductions, rentPaid: e.target.value})}
-                  className="input-field"
-                />
-                <p className="text-xs text-gray-500 mt-1">20% relief, max N500,000</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Life Assurance Premium
-                </label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={deductions.lifeAssurance}
-                  onChange={(e) => setDeductions({...deductions, lifeAssurance: e.target.value})}
-                  className="input-field"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Options */}
-          <div className="card">
-            <label className="flex items-center cursor-pointer">
+                {incomeTypes.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
+                ))}
+              </select>
               <input
-                type="checkbox"
-                checked={isInformalSector}
-                onChange={(e) => setIsInformalSector(e.target.checked)}
-                className="h-4 w-4 text-primary-600 rounded border-gray-300"
+                type="number"
+                placeholder="Amount (NGN)"
+                value={source.amount}
+                onChange={(e) => updateIncomeSource(index, 'amount', e.target.value)}
+                className="input-field text-sm"
               />
-              <span className="ml-2 text-sm text-gray-700">
-                Presumptive Tax Regime (Informal Sector - Section 29)
-              </span>
-            </label>
-          </div>
-
-          {/* Calculate Button */}
+              <input
+                type="text"
+                placeholder="Description (optional)"
+                value={source.description}
+                onChange={(e) => updateIncomeSource(index, 'description', e.target.value)}
+                className="input-field text-sm"
+              />
+            </div>
+          ))}
           <button
-            onClick={handleCalculate}
-            disabled={loading}
-            className="btn-primary w-full flex items-center justify-center"
+            onClick={addIncomeSource}
+            className="w-full py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl text-gray-600 dark:text-gray-400 hover:border-primary-500 dark:hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex items-center justify-center active:scale-95"
           >
-            <CalcIcon className="h-5 w-5 mr-2" />
-            {loading ? 'Calculating...' : 'Calculate Tax'}
+            <Plus className="h-5 w-5 mr-2" />
+            Add Income Source
           </button>
         </div>
+      </div>
 
-        {/* Results */}
-        <div>
-          {result ? (
-            <div className="card space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">Tax Calculation Results</h2>
-              
-              {/* Summary */}
-              <div className="bg-primary-50 rounded-lg p-4 border border-primary-200">
-                {/* Special cases: Presumptive Tax or Minimum Wage Exemption */}
-                {(result.regime || result.exemption) && (
-                  <div className="mb-4 p-3 bg-blue-100 rounded-lg border border-blue-200">
-                    {result.regime && (
-                      <p className="text-sm font-medium text-blue-800">{result.regime}</p>
-                    )}
-                    {result.exemption && (
-                      <p className="text-sm font-medium text-blue-800">{result.exemption}</p>
-                    )}
-                    {result.effectiveRate && (
-                      <p className="text-xs text-blue-600 mt-1">Effective Rate: {result.effectiveRate}</p>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">Gross Income</span>
-                  <span className="text-lg font-semibold text-gray-900">
-                    {formatCurrency(result.grossIncome || 0)}
-                  </span>
-                </div>
-                
-                {result.deductions && (
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-gray-600">Total Deductions</span>
-                    <span className="text-lg font-semibold text-gray-900">
-                      {formatCurrency(result.deductions.total || 0)}
-                    </span>
-                  </div>
-                )}
-                
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">Taxable Income</span>
-                  <span className="text-lg font-semibold text-gray-900">
-                    {formatCurrency(result.taxableIncome || 0)}
-                  </span>
-                </div>
-                
-                <div className="border-t border-primary-200 pt-2 mt-2">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">Tax Payable</span>
-                    <span className="text-2xl font-bold text-primary-600">
-                      {formatCurrency(
-                        result.taxCalculation?.finalTaxPayable || 
-                        result.taxPayable || 
-                        0
-                      )}
-                    </span>
-                  </div>
-                  {result.netIncome !== undefined && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Net Income</span>
-                      <span className="text-lg font-semibold text-green-600">
-                        {formatCurrency(result.netIncome)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Tax Breakdown */}
-              {result.taxCalculation?.breakdown && result.taxCalculation.breakdown.length > 0 && (
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-3">Tax Breakdown by Band</h3>
-                  <div className="space-y-2">
-                    {result.taxCalculation.breakdown.map((band, index) => (
-                      <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100">
-                        <div>
-                          <span className="text-sm text-gray-700">{band.band}</span>
-                          <span className="text-xs text-gray-500 ml-2">({band.rate})</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-gray-900">
-                            {formatCurrency(band.tax)}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            on {formatCurrency(band.taxableAmount)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Deductions Breakdown */}
-              {result.deductions && (
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-3">Deductions Applied</h3>
-                  <div className="space-y-2 text-sm">
-                    {result.deductions.cra > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Consolidated Relief Allowance (CRA)</span>
-                        <span className="font-medium">{formatCurrency(result.deductions.cra)}</span>
-                      </div>
-                    )}
-                    {result.deductions.pension > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Pension</span>
-                        <span className="font-medium">{formatCurrency(result.deductions.pension)}</span>
-                      </div>
-                    )}
-                    {result.deductions.rentRelief > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Rent Relief</span>
-                        <span className="font-medium">{formatCurrency(result.deductions.rentRelief)}</span>
-                      </div>
-                    )}
-                    {result.deductions.nhf > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">NHF</span>
-                        <span className="font-medium">{formatCurrency(result.deductions.nhf)}</span>
-                      </div>
-                    )}
-                    {result.deductions.nhis > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">NHIS</span>
-                        <span className="font-medium">{formatCurrency(result.deductions.nhis)}</span>
-                      </div>
-                    )}
-                    {result.deductions.lifeAssurance > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Life Assurance</span>
-                        <span className="font-medium">{formatCurrency(result.deductions.lifeAssurance)}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Config Source */}
-              <div className="pt-4 border-t border-gray-200">
-                <div className="flex items-start text-xs text-gray-500">
-                  <Info className="h-4 w-4 mr-2 mt-0.5" />
-                  <span>
-                    Configuration: {result.configName} ({result.configSource})
-                  </span>
-                </div>
-              </div>
-            </div>
+      {/* Deductions - Collapsible */}
+      <div className="card">
+        <button
+          onClick={() => setShowDeductions(!showDeductions)}
+          className="w-full flex items-center justify-between"
+        >
+          <h2 className="font-bold text-gray-900 dark:text-white text-lg">Deductions</h2>
+          {showDeductions ? (
+            <ChevronUp className="h-5 w-5 text-gray-400" />
           ) : (
-            <div className="card text-center py-12">
-              <CalcIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">Enter your income and deductions, then click Calculate</p>
+            <ChevronDown className="h-5 w-5 text-gray-400" />
+          )}
+        </button>
+        {showDeductions && (
+          <div className="mt-4 space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Pension
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                value={deductions.pension}
+                onChange={(e) => setDeductions({...deductions, pension: e.target.value})}
+                className="input-field text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                NHF
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                value={deductions.nhf}
+                onChange={(e) => setDeductions({...deductions, nhf: e.target.value})}
+                className="input-field text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                NHIS
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                value={deductions.nhis}
+                onChange={(e) => setDeductions({...deductions, nhis: e.target.value})}
+                className="input-field text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Rent Paid (Annual)
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                value={deductions.rentPaid}
+                onChange={(e) => setDeductions({...deductions, rentPaid: e.target.value})}
+                className="input-field text-sm"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">20% relief, max ₦500k</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Life Assurance
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                value={deductions.lifeAssurance}
+                onChange={(e) => setDeductions({...deductions, lifeAssurance: e.target.value})}
+                className="input-field text-sm"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Options */}
+      <div className="card">
+        <label className="flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isInformalSector}
+            onChange={(e) => setIsInformalSector(e.target.checked)}
+            className="h-5 w-5 text-primary-600 rounded border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+          />
+          <span className="ml-3 text-sm text-gray-700 dark:text-gray-300">
+            Presumptive Tax (Informal Sector)
+          </span>
+        </label>
+      </div>
+
+      {/* Calculate Button */}
+      <button
+        onClick={handleCalculate}
+        disabled={loading}
+        className="btn-primary w-full"
+      >
+        <CalcIcon className="h-5 w-5 mr-2 inline" />
+        {loading ? 'Calculating...' : 'Calculate Tax'}
+      </button>
+
+      {/* Results */}
+      {result && (
+        <div id="results" className="space-y-4">
+          <div className="card bg-gradient-to-br from-primary-500 to-primary-600 text-white border-0 shadow-xl">
+            {(result.regime || result.exemption) && (
+              <div className="mb-4 p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                <p className="text-sm font-semibold">{result.regime || result.exemption}</p>
+                {result.effectiveRate && (
+                  <p className="text-xs text-primary-100 mt-1">Rate: {result.effectiveRate}</p>
+                )}
+              </div>
+            )}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-primary-100 text-sm">Gross Income</span>
+                <span className="font-bold text-lg">{formatCurrency(result.grossIncome || 0)}</span>
+              </div>
+              {result.deductions && (
+                <div className="flex justify-between items-center">
+                  <span className="text-primary-100 text-sm">Deductions</span>
+                  <span className="font-semibold">{formatCurrency(result.deductions.total || 0)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-3 border-t border-white/20">
+                <span className="text-primary-100 text-sm">Tax Payable</span>
+                <span className="font-bold text-2xl">
+                  {formatCurrency(
+                    result.taxCalculation?.finalTaxPayable || result.taxPayable || 0
+                  )}
+                </span>
+              </div>
+              {result.netIncome !== undefined && (
+                <div className="flex justify-between items-center">
+                  <span className="text-primary-100 text-sm">Net Income</span>
+                  <span className="font-bold text-xl text-green-200">
+                    {formatCurrency(result.netIncome)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Tax Breakdown */}
+          {result.taxCalculation?.breakdown && result.taxCalculation.breakdown.length > 0 && (
+            <div className="card">
+              <h3 className="font-bold text-gray-900 dark:text-white mb-3">Tax Breakdown</h3>
+              <div className="space-y-2">
+                {result.taxCalculation.breakdown.map((band, index) => (
+                  <div key={index} className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 last:border-0">
+                    <div>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{band.band}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({band.rate})</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {formatCurrency(band.tax)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   )
 }
 
 export default Calculator
-

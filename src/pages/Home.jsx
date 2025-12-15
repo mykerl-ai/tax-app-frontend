@@ -1,114 +1,92 @@
 import { Link } from 'react-router-dom'
-import { Calculator, FileText, MessageSquare, TrendingUp, Shield, Zap } from 'lucide-react'
+import { Calculator, FileText, MessageSquare, ArrowRight } from 'lucide-react'
 
 const Home = () => {
   const features = [
     {
       icon: Calculator,
       title: 'Tax Calculator',
-      description: 'Calculate your personal income tax using Nigeria Tax Act 2025 rates',
+      description: 'Calculate your personal income tax',
       link: '/calculator',
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      gradient: 'from-blue-500 to-cyan-500',
     },
     {
       icon: FileText,
-      title: 'Bank Statement Analysis',
-      description: 'Upload your bank statement and automatically detect income and deductions',
+      title: 'Bank Statement',
+      description: 'Auto-detect income from statements',
       link: '/bank-statement',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      gradient: 'from-green-500 to-emerald-500',
     },
     {
       icon: MessageSquare,
-      title: 'AI Tax Advisor',
-      description: 'Get instant answers to your tax questions with AI-powered assistance',
+      title: 'AI Advisor',
+      description: 'Get instant tax advice',
       link: '/ai-chat',
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-    },
-  ]
-
-  const benefits = [
-    {
-      icon: TrendingUp,
-      title: 'Accurate Calculations',
-      description: 'Based on the latest Nigeria Tax Act 2025 with progressive tax bands',
-    },
-    {
-      icon: Shield,
-      title: 'Compliance Ready',
-      description: 'Automatically handles ring-fencing, reliefs, and exemptions',
-    },
-    {
-      icon: Zap,
-      title: 'Fast & Easy',
-      description: 'Calculate your tax liability in seconds with an intuitive interface',
+      gradient: 'from-purple-500 to-pink-500',
     },
   ]
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Hero Section */}
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          Nigeria Tax Calculator 2025
+      <div className="text-center space-y-3 pt-4">
+        <div className="inline-block p-4 rounded-3xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/30 mb-2">
+          <Calculator className="h-8 w-8 text-white" />
+        </div>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Tax Calculator
         </h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          Calculate your personal income tax, analyze bank statements, and get AI-powered tax advice
-          based on the Nigeria Tax Act 2025
+        <p className="text-gray-600 dark:text-gray-400 text-sm px-4">
+          Calculate your personal income tax based on Nigeria Tax Act 2025
         </p>
       </div>
 
-      {/* Features Grid */}
-      <div className="grid md:grid-cols-3 gap-6 mb-12">
+      {/* Quick Actions */}
+      <div className="space-y-3">
         {features.map((feature, index) => {
           const Icon = feature.icon
           return (
             <Link
               key={index}
               to={feature.link}
-              className={`${feature.bgColor} rounded-xl p-6 hover:shadow-lg transition-shadow`}
+              className="card flex items-center space-x-4 active:scale-98 transition-transform"
             >
-              <Icon className={`h-10 w-10 ${feature.color} mb-4`} />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">{feature.title}</h3>
-              <p className="text-gray-600">{feature.description}</p>
+              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center shadow-lg flex-shrink-0`}>
+                <Icon className="h-7 w-7 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-1">
+                  {feature.title}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {feature.description}
+                </p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
             </Link>
           )
         })}
       </div>
 
-      {/* Benefits Section */}
-      <div className="card mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Why Use This Calculator?</h2>
-        <div className="grid md:grid-cols-3 gap-6">
-          {benefits.map((benefit, index) => {
-            const Icon = benefit.icon
-            return (
-              <div key={index} className="text-center">
-                <Icon className="h-8 w-8 text-primary-600 mx-auto mb-3" />
-                <h3 className="font-semibold text-gray-900 mb-2">{benefit.title}</h3>
-                <p className="text-sm text-gray-600">{benefit.description}</p>
-              </div>
-            )
-          })}
+      {/* Quick Start CTA */}
+      <Link
+        to="/calculator"
+        className="block card bg-gradient-to-r from-primary-500 to-primary-600 text-white border-0 shadow-xl shadow-primary-500/30 active:scale-98 transition-transform"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-bold text-lg mb-1">Start Calculating</h2>
+            <p className="text-primary-100 text-sm">
+              Enter your income and get instant tax calculation
+            </p>
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center">
+            <ArrowRight className="h-6 w-6" />
+          </div>
         </div>
-      </div>
-
-      {/* Quick Start */}
-      <div className="card bg-gradient-to-r from-primary-50 to-primary-100 border-primary-200">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Quick Start</h2>
-        <p className="text-gray-700 mb-6">
-          Get started by calculating your tax liability. Simply enter your income sources and deductions,
-          and we'll handle the rest.
-        </p>
-        <Link to="/calculator" className="btn-primary inline-block">
-          Start Calculating
-        </Link>
-      </div>
+      </Link>
     </div>
   )
 }
 
 export default Home
-
