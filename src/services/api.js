@@ -59,6 +59,83 @@ export const transactionAPI = {
     return response.data
   },
   
+  analyzeStatementStream: (file, onProgress, onAnalysis, onTaxEstimate, onTaxAdvisory, onComplete, onError, onText) => {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+    const formData = new FormData()
+    formData.append('statement', file)
+    
+    // Use fetch for streaming with FormData
+    // Note: API_BASE_URL already includes /api if set, otherwise we add it
+    const url = API_BASE_URL.includes('/api') 
+      ? `${API_BASE_URL}/transactions/analyze-statement-stream`
+      : `${API_BASE_URL}/api/transactions/analyze-statement-stream`
+    
+    return fetch(url, {
+      method: 'POST',
+      body: formData,
+    }).then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      
+      const processStream = () => {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            return
+          }
+          
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split('\n\n')
+          buffer = lines.pop() || '' // Keep incomplete line in buffer
+          
+          lines.forEach(line => {
+            if (!line.trim()) return
+            
+            const [eventLine, dataLine] = line.split('\n')
+            if (!eventLine || !dataLine) return
+            
+            const event = eventLine.replace('event: ', '')
+            const data = JSON.parse(dataLine.replace('data: ', ''))
+            
+            switch (event) {
+              case 'progress':
+                onProgress?.(data)
+                break
+              case 'analysis':
+                onAnalysis?.(data)
+                break
+              case 'taxEstimate':
+                onTaxEstimate?.(data)
+                break
+              case 'taxAdvisory':
+                onTaxAdvisory?.(data)
+                break
+              case 'text':
+                onText?.(data)
+                break
+              case 'complete':
+                onComplete?.(data)
+                break
+              case 'error':
+                onError?.(data)
+                break
+            }
+          })
+          
+          return processStream()
+        }).catch(error => {
+          onError?.({ error: error.message })
+        })
+      }
+      
+      return processStream()
+    })
+  },
+  
   analyzeJSON: async (transactions) => {
     const response = await api.post('/transactions/analyze-statement', { transactions })
     return response.data

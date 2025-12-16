@@ -1,12 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Upload, FileText, CheckCircle, Loader, X, TrendingUp, TrendingDown, AlertCircle, Info, DollarSign, PieChart, Calendar, Lightbulb, Target, AlertTriangle, CheckCircle2, ArrowRight, BookOpen, Shield } from 'lucide-react'
 import { transactionAPI } from '../services/api'
 import toast from 'react-hot-toast'
+import StreamingText from '../components/StreamingText'
 
 const BankStatement = () => {
   const [file, setFile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
+  const [progress, setProgress] = useState({ stage: '', message: '', progress: 0 })
+  const [streamingData, setStreamingData] = useState({ analysis: null, taxEstimate: null, taxAdvisory: null })
+  const [streamingTexts, setStreamingTexts] = useState([]) // Array of streaming text items
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0]
@@ -27,27 +31,99 @@ const BankStatement = () => {
     }
 
     setLoading(true)
+    setProgress({ stage: 'starting', message: 'Starting analysis...', progress: 0 })
+    setStreamingData({ analysis: null, taxEstimate: null, taxAdvisory: null })
+    setStreamingTexts([]) // Reset streaming texts
+    setResult(null)
+
     try {
-      const response = await transactionAPI.analyzeStatement(file)
-      console.log('API Response:', response)
-      console.log('Tax Advisory present:', !!response.taxAdvisory)
-      if (response.taxAdvisory) {
-        console.log('Tax Advisory structure:', {
-          opportunities: response.taxAdvisory.opportunities?.length || 0,
-          warnings: response.taxAdvisory.warnings?.length || 0,
-          nextSteps: response.taxAdvisory.nextSteps?.length || 0
-        })
-      }
-      setResult(response)
-      toast.success('Statement analyzed!')
-      setTimeout(() => {
-        document.getElementById('results')?.scrollIntoView({ behavior: 'smooth' })
-      }, 100)
+      // Use streaming API for real-time updates
+      await transactionAPI.analyzeStatementStream(
+        file,
+        // onProgress
+        (data) => {
+          setProgress(data)
+          if (data.extracted) {
+            setStreamingData(prev => ({ ...prev, extracted: data.extracted }))
+          }
+        },
+        // onAnalysis
+        (data) => {
+          setStreamingData(prev => ({ ...prev, analysis: data }))
+          setResult(prev => ({
+            ...prev,
+            detectedData: {
+              incomeSources: data.incomeSources || [],
+              deductions: data.deductions || {},
+            },
+            extracted: {
+              totalTransactions: data.summary?.totalIncomeSources || 0,
+              incomeSourcesFound: data.summary?.totalIncomeSources || 0,
+              deductionsFound: Object.keys(data.deductions || {}).filter(k => data.deductions[k] > 0).length,
+            }
+          }))
+        },
+        // onTaxEstimate
+        (data) => {
+          setStreamingData(prev => ({ ...prev, taxEstimate: data }))
+          setResult(prev => ({ ...prev, taxEstimate: data }))
+        },
+        // onTaxAdvisory
+        (data) => {
+          setStreamingData(prev => ({ ...prev, taxAdvisory: data }))
+          setResult(prev => ({ ...prev, taxAdvisory: data }))
+        },
+        // onComplete
+        (data) => {
+          setResult(data)
+          setLoading(false)
+          toast.success('Statement analyzed!')
+          setTimeout(() => {
+            document.getElementById('results')?.scrollIntoView({ behavior: 'smooth' })
+          }, 100)
+        },
+        // onError
+        (data) => {
+          console.error('Streaming error:', data)
+          setLoading(false)
+          toast.error(data.error || 'Failed to analyze statement')
+        },
+        // onText (streaming text chunks) - ChatGPT-like typing effect
+        (data) => {
+          console.log('📝 Received text chunk:', { type: data.type, length: data.text?.length, isComplete: data.isComplete })
+          setStreamingTexts(prev => {
+            // Find existing item by type and title
+            const existingIndex = prev.findIndex(item => 
+              item.type === data.type && 
+              item.data?.title === data.data?.title
+            )
+            
+            if (existingIndex >= 0) {
+              // Update existing text (server sends cumulative text)
+              const updated = [...prev]
+              updated[existingIndex] = { 
+                ...updated[existingIndex], 
+                text: data.text || '', // Server sends cumulative text
+                isComplete: data.isComplete === true
+              }
+              return updated
+            } else {
+              // Add new text item
+              return [...prev, { 
+                id: `${data.type}-${data.data?.title || Date.now()}-${Math.random()}`, 
+                type: data.type,
+                text: data.text || '',
+                isComplete: data.isComplete === true,
+                data: data.data
+              }]
+            }
+          })
+        }
+      )
     } catch (error) {
       console.error('Upload error:', error)
-      toast.error(error.response?.data?.error || 'Failed to analyze statement')
-    } finally {
       setLoading(false)
+      toast.error(error.message || 'Failed to analyze statement')
     }
   }
 
@@ -230,6 +306,36 @@ const BankStatement = () => {
         </button>
       </div>
 
+      {/* Progress Indicator */}
+      {loading && progress.progress > 0 && (
+        <div className="card bg-gradient-to-br from-primary-500 to-primary-600 text-white border-0">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-primary-100 text-sm font-semibold">{progress.message}</span>
+            <span className="text-primary-100 text-sm">{progress.progress}%</span>
+          </div>
+          <div className="w-full bg-primary-400/30 rounded-full h-2">
+            <div
+              className="bg-white h-2 rounded-full transition-all duration-300"
+              style={{ width: `${progress.progress}%` }}
+            />
+          </div>
+          <p className="text-xs text-primary-100 mt-2 capitalize">{progress.stage}</p>
+        </div>
+      )}
+
+      {/* Streaming Results - Show partial data as it arrives */}
+      {(streamingData.analysis || streamingData.taxEstimate || streamingData.taxAdvisory) && !result && (
+        <div className="card border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
+          <div className="flex items-center gap-2 mb-2">
+            <Loader className="h-5 w-5 text-blue-600 dark:text-blue-400 animate-spin" />
+            <h3 className="font-bold text-gray-900 dark:text-white text-lg">Processing...</h3>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Results are being generated in real-time. Partial data is shown below.
+          </p>
+        </div>
+      )}
+
       {/* Intelligent Results */}
       {result && insights && (
         <div id="results" className="space-y-4">
@@ -346,6 +452,49 @@ const BankStatement = () => {
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
                 Response keys: {Object.keys(result).join(', ')}
               </p>
+            </div>
+          )}
+
+          {/* Streaming Text Display - ChatGPT-like typing effect from OpenAI */}
+          {streamingTexts.length > 0 && (
+            <div className="card border-2 border-primary-200 dark:border-primary-800">
+              <div className="flex items-center mb-4">
+                <Loader className="h-5 w-5 text-primary-600 dark:text-primary-400 mr-2 animate-spin" />
+                <h3 className="font-bold text-gray-900 dark:text-white text-lg">
+                  {streamingTexts.some(item => !item.isComplete) 
+                    ? 'AI is generating recommendations...' 
+                    : 'AI Recommendations'}
+                </h3>
+              </div>
+              <div className="space-y-4">
+                {streamingTexts.map((item, index) => (
+                  <div
+                    key={item.id || index}
+                    className={`p-4 rounded-2xl border ${
+                      item.type === 'warning' || item.type === 'ai_recommendation'
+                        ? item.type === 'warning'
+                          ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+                          : 'bg-gradient-to-br from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 border-primary-200 dark:border-primary-800'
+                        : 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800'
+                    }`}
+                  >
+                    {item.data?.title && (
+                      <h4 className="font-bold text-gray-900 dark:text-white text-base mb-3 flex items-center gap-2">
+                        {item.type === 'ai_recommendation' && (
+                          <span className="text-primary-600 dark:text-primary-400">🤖</span>
+                        )}
+                        {item.data.title}
+                      </h4>
+                    )}
+                    <div className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap leading-relaxed">
+                      {item.text || ''}
+                      {!item.isComplete && (
+                        <span className="animate-pulse text-primary-600 dark:text-primary-400 ml-1">|</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
