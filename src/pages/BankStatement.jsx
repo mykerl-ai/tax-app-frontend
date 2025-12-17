@@ -505,7 +505,7 @@ const BankStatement = () => {
             </div>
           )}
 
-      {/* Streaming Text Display - ChatGPT-like typing effect from OpenAI */}
+      {/* Streaming Text Display - ChatGPT-like typing effect from OpenAI
       {streamingTexts.length > 0 && result && (
         <div className="card border-2 border-primary-200 dark:border-primary-800">
               <div className="flex items-center mb-4">
@@ -555,7 +555,7 @@ const BankStatement = () => {
                 ))}
               </div>
             </div>
-          )}
+          )} */}
 
           {/* Professional Tax Advisory */}
           {result.taxAdvisory && (
