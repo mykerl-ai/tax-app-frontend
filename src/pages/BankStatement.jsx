@@ -306,33 +306,83 @@ const BankStatement = () => {
         </button>
       </div>
 
-      {/* Progress Indicator */}
-      {loading && progress.progress > 0 && (
-        <div className="card bg-gradient-to-br from-primary-500 to-primary-600 text-white border-0">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-primary-100 text-sm font-semibold">{progress.message}</span>
-            <span className="text-primary-100 text-sm">{progress.progress}%</span>
-          </div>
-          <div className="w-full bg-primary-400/30 rounded-full h-2">
-            <div
-              className="bg-white h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progress.progress}%` }}
-            />
-          </div>
-          <p className="text-xs text-primary-100 mt-2 capitalize">{progress.stage}</p>
-        </div>
-      )}
 
-      {/* Streaming Results - Show partial data as it arrives */}
-      {(streamingData.analysis || streamingData.taxEstimate || streamingData.taxAdvisory) && !result && (
-        <div className="card border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
-          <div className="flex items-center gap-2 mb-2">
-            <Loader className="h-5 w-5 text-blue-600 dark:text-blue-400 animate-spin" />
-            <h3 className="font-bold text-gray-900 dark:text-white text-lg">Processing...</h3>
+      {/* Streaming Text Display - Shows AI extraction progress */}
+      {streamingTexts.length > 0 && !result && (
+        <div className="card border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex gap-1">
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              {streamingTexts.some(item => !item.isComplete) 
+                ? 'Reading your transactions...' 
+                : 'Extraction complete'}
+            </h3>
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Results are being generated in real-time. Partial data is shown below.
-          </p>
+          <div className="space-y-3">
+            {streamingTexts.map((item, index) => {
+              // For json_extraction, show a cleaner summary
+              if (item.type === 'json_extraction') {
+                const txCount = (item.text?.match(/"date"/g) || []).length
+                const lastTx = item.text?.match(/\{"date":"([^"]+)","description":"([^"]{0,40})/g)?.slice(-1)[0]
+                const lastDesc = lastTx ? lastTx.match(/"description":"([^"]{0,40})/)?.[1] : ''
+                
+                return (
+                  <div key={item.id || index} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Found <span className="font-bold text-primary-600 dark:text-primary-400">{txCount}</span> transactions so far
+                      </span>
+                      {!item.isComplete && (
+                        <span className="text-xs text-gray-400 dark:text-gray-500 animate-pulse">extracting...</span>
+                      )}
+                    </div>
+                    {lastDesc && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">
+                        Latest: {lastDesc}...
+                      </p>
+                    )}
+                    {/* Show mini preview of raw data in collapsed format */}
+                    <details className="group">
+                      <summary className="text-xs text-gray-400 dark:text-gray-500 cursor-pointer hover:text-gray-600 dark:hover:text-gray-400">
+                        View raw data
+                      </summary>
+                      <div className="mt-2 p-3 bg-gray-900 dark:bg-black rounded-xl overflow-auto max-h-48">
+                        <code className="text-[10px] text-gray-400 whitespace-pre-wrap break-all">
+                          {item.text?.slice(-500) || ''}
+                          {!item.isComplete && <span className="text-primary-400 animate-pulse">|</span>}
+                        </code>
+                      </div>
+                    </details>
+                  </div>
+                )
+              }
+              
+              // For other types, show normally
+              return (
+                <div
+                  key={item.id || index}
+                  className="p-3 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800"
+                >
+                  {item.data?.title && (
+                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm mb-2 flex items-center gap-2">
+                      <span className="text-primary-600 dark:text-primary-400">🤖</span>
+                      {item.data.title}
+                    </h4>
+                  )}
+                  <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                    {item.text || ''}
+                    {!item.isComplete && (
+                      <span className="animate-pulse text-primary-600 dark:text-primary-400 ml-1">|</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -455,9 +505,9 @@ const BankStatement = () => {
             </div>
           )}
 
-          {/* Streaming Text Display - ChatGPT-like typing effect from OpenAI */}
-          {streamingTexts.length > 0 && (
-            <div className="card border-2 border-primary-200 dark:border-primary-800">
+      {/* Streaming Text Display - ChatGPT-like typing effect from OpenAI */}
+      {streamingTexts.length > 0 && result && (
+        <div className="card border-2 border-primary-200 dark:border-primary-800">
               <div className="flex items-center mb-4">
                 <Loader className="h-5 w-5 text-primary-600 dark:text-primary-400 mr-2 animate-spin" />
                 <h3 className="font-bold text-gray-900 dark:text-white text-lg">
@@ -475,7 +525,9 @@ const BankStatement = () => {
                         ? item.type === 'warning'
                           ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
                           : 'bg-gradient-to-br from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 border-primary-200 dark:border-primary-800'
-                        : 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800'
+                        : item.type === 'json_extraction'
+                          ? 'bg-gray-50 dark:bg-gray-900/40 border-gray-200 dark:border-gray-800 font-mono'
+                          : 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800'
                     }`}
                   >
                     {item.data?.title && (
@@ -483,10 +535,17 @@ const BankStatement = () => {
                         {item.type === 'ai_recommendation' && (
                           <span className="text-primary-600 dark:text-primary-400">🤖</span>
                         )}
+                        {item.type === 'json_extraction' && (
+                          <span className="text-gray-400 dark:text-gray-500 text-[10px] uppercase tracking-wider bg-gray-200 dark:bg-gray-800 px-2 py-0.5 rounded-full">Thinking</span>
+                        )}
                         {item.data.title}
                       </h4>
                     )}
-                    <div className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap leading-relaxed">
+                    <div className={`whitespace-pre-wrap leading-relaxed ${
+                      item.type === 'json_extraction'
+                        ? 'text-gray-400 dark:text-gray-500 text-xs font-mono opacity-80'
+                        : 'text-sm text-gray-900 dark:text-white'
+                    }`}>
                       {item.text || ''}
                       {!item.isComplete && (
                         <span className="animate-pulse text-primary-600 dark:text-primary-400 ml-1">|</span>

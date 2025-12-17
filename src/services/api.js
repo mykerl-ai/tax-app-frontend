@@ -65,10 +65,11 @@ export const transactionAPI = {
     formData.append('statement', file)
     
     // Use fetch for streaming with FormData
-    // Note: API_BASE_URL already includes /api if set, otherwise we add it
     const url = API_BASE_URL.includes('/api') 
       ? `${API_BASE_URL}/transactions/analyze-statement-stream`
       : `${API_BASE_URL}/api/transactions/analyze-statement-stream`
+    
+    console.log('[STREAM] Starting connection to:', url)
     
     return fetch(url, {
       method: 'POST',
@@ -85,49 +86,64 @@ export const transactionAPI = {
       const processStream = () => {
         reader.read().then(({ done, value }) => {
           if (done) {
+            console.log('[STREAM] Stream ended')
             return
           }
           
+          // Decode chunk and add to buffer
           buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n\n')
+          
+          // Process all complete NDJSON lines (separated by \n)
+          const lines = buffer.split('\n')
           buffer = lines.pop() || '' // Keep incomplete line in buffer
           
+          // Process each complete JSON line
           lines.forEach(line => {
             if (!line.trim()) return
             
-            const [eventLine, dataLine] = line.split('\n')
-            if (!eventLine || !dataLine) return
-            
-            const event = eventLine.replace('event: ', '')
-            const data = JSON.parse(dataLine.replace('data: ', ''))
-            
-            switch (event) {
-              case 'progress':
-                onProgress?.(data)
-                break
-              case 'analysis':
-                onAnalysis?.(data)
-                break
-              case 'taxEstimate':
-                onTaxEstimate?.(data)
-                break
-              case 'taxAdvisory':
-                onTaxAdvisory?.(data)
-                break
-              case 'text':
-                onText?.(data)
-                break
-              case 'complete':
-                onComplete?.(data)
-                break
-              case 'error':
-                onError?.(data)
-                break
+            try {
+              const data = JSON.parse(line)
+              console.log(`[STREAM] Received: ${data.type}`, { preview: JSON.stringify(data).substring(0, 80) })
+              
+              // Route based on type field
+              switch (data.type) {
+                case 'progress':
+                  onProgress?.(data)
+                  break
+                case 'analysis':
+                  onAnalysis?.(data)
+                  break
+                case 'taxEstimate':
+                  onTaxEstimate?.(data)
+                  break
+                case 'taxAdvisory':
+                  onTaxAdvisory?.(data)
+                  break
+                case 'text':
+                  // Transform to match expected format
+                  onText?.({
+                    type: data.textType,
+                    text: data.text,
+                    isComplete: data.isComplete,
+                    data: { title: data.title }
+                  })
+                  break
+                case 'complete':
+                  onComplete?.(data)
+                  break
+                case 'error':
+                  onError?.(data)
+                  break
+              }
+            } catch (err) {
+              console.error('[STREAM] Error parsing JSON line:', err, line.substring(0, 100))
             }
           })
           
+          // Continue reading
           return processStream()
         }).catch(error => {
+          console.error('[STREAM] Read error:', error)
           onError?.({ error: error.message })
         })
       }
